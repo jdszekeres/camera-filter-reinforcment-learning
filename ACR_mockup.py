@@ -214,6 +214,7 @@ def render(raw_path: str, pp3_path: str, out_path: str, rawtherapee_cli="rawther
         process.kill()
         stout, stderr = process.communicate()
 
+
 if __name__ == "__main__":
     from type import ACRModel, HSLModel
 
@@ -228,3 +229,4 @@ if __name__ == "__main__":
 
     apply_acr_to_pp3(acr, output_pp3="edit.pp3")
     render("milkyway.jpg", "edit.pp3", "IMG_0001_out.jpg")
+

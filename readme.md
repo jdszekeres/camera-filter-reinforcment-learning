@@ -3,6 +3,15 @@
 
 ### Usage
 
+### 0. Installtion
+
+Install the latest version of RawTherapee (At least version 5.12) and ensure it is on your PATH (C:\\Program Files\\RawTherapee\\\<version\> on Windows or /Applications/RawTherapee.app/Contents/MacOS/rawtherapee-cli on Mac)
+
+Install project requirements 
+```python
+pip install -r requirements.txt
+```
+
 #### 1. Collecting data
 Take photos both with and without the filter (make sure they are the same image resolution) and add them to a `dataset/input` and `dataset/output` folder. In the `dataset` folder, create a `photos.json` file with an array of photo entries in the following format 
 

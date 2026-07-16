@@ -27,7 +27,7 @@ class ACRModel(pydantic.BaseModel):
     # Effects
     texture: int | None = pydantic.Field(default=None, ge=-100, le=100)
     clarity: int | None = pydantic.Field(default=None, ge=-100, le=100)
-    dehaze: int | None = pydantic.Field(default=None, ge=-100, le=100)
+    dehaze: int | None = pydantic.Field(default=None, ge=0, le=100)
 
     # Color Grading
     shadows_hsl: HSLModel | None = pydantic.Field(default=None)

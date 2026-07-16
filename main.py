@@ -22,7 +22,7 @@ PARAM_BOUNDS = [
     (-100, 100),      # saturation
     (-100, 100),      # texture
     (-100, 100),      # clarity
-    (-100, 100),      # dehaze
+    (0, 100),         # dehaze
     (0, 360),         # shadows_hsl.hue
     (0, 100),         # shadows_hsl.saturation
     (0, 100),         # shadows_hsl.luminance
@@ -108,6 +108,7 @@ def action_to_acr(action):
 
         lo, hi = bounds
         normalized_value = normalize_to_bounds(float(param_value), lo, hi)
+        normalized_value = np.clip(normalized_value, lo, hi)
 
         if field_name == "exposure":
             acr_dict[field_name] = normalized_value
@@ -182,14 +183,30 @@ class ImageFilterEnv(gym.Env):
 
         ACR_mockup.apply_acr_to_pp3(acr, 'temp.pp3')
         self.input_image.save('temp_in.jpg')
-        ACR_mockup.render('temp_in.jpg', 'temp.pp3', 'temp_out.jpg')
 
-        rendered_image = Image.open('temp_out.jpg')
-        if rendered_image.size != self.target_image.size:
-            rendered_image = rendered_image.resize(self.target_image.size, Image.Resampling.LANCZOS)
-        rendered_array = np.asarray(rendered_image)
-        target_array = np.asarray(self.target_image)
-        reward = image_similarity(rendered_array, target_array)
+        try:
+            ACR_mockup.render('temp_in.jpg', 'temp.pp3', 'temp_out.jpg')
+
+            with Image.open('temp_out.jpg') as rendered_image_file:
+                rendered_image = rendered_image_file.copy()
+                rendered_image_file.close()
+
+
+            if rendered_image.size != self.target_image.size:
+                rendered_image = rendered_image.resize(self.target_image.size, Image.Resampling.LANCZOS)
+
+
+
+            rendered_array = np.asarray(rendered_image)
+            target_array = np.asarray(self.target_image)
+            reward = image_similarity(rendered_array, target_array)
+            self.current_image = rendered_image.copy()
+        finally:
+            if os.path.exists('temp_in.jpg'):
+                os.remove('temp_in.jpg')
+            if os.path.exists('temp_out.jpg'):
+                os.remove('temp_out.jpg')
+
         return reward, rendered_image, acr
 
     def evaluate_action(self, action):
@@ -205,13 +222,17 @@ class ImageFilterEnv(gym.Env):
 
     def step(self, action):
         reward, per_pair_scores = self.evaluate_action(action)
-        self.current_image = Image.open('temp_out.jpg')
 
         self.step_count += 1
         terminated = True
         truncated = self.step_count >= self.max_steps
         obs = np.zeros((1,), dtype=np.float32)
         return obs, reward, terminated, truncated, {"per_pair_scores": per_pair_scores}
+
+    def render_action_to_file(self, action, pair_index, output_path):
+        _, rendered_image, _ = self._score_action_on_pair(action, pair_index)
+        rendered_image.save(output_path)
+        return rendered_image
 
     def render(self, mode='human'):
         self.current_image.show()
@@ -299,6 +320,10 @@ def main(LEARNING_RATE, N_STEPS, BATCH_SIZE, N_EPOCHS, TOTAL_TIMESTEPS, SEED):
     for pair_index, ((input_path, target_path), score) in enumerate(zip(env.dataset_pairs, per_pair_scores), start=1):
         print(f'Pair {pair_index}/{len(env.dataset_pairs)}: {os.path.basename(input_path)} -> {os.path.basename(target_path)} | score={score:.4f}')
 
+    final_output_path = 'rl_generated_output.jpg'
+    env.render_action_to_file(best_action, 0, final_output_path)
+    print(f'\nSaved rendered preview to {final_output_path}')
+
     model.save('image_filter_rl')
 
 
@@ -306,8 +331,8 @@ if __name__ == '__main__':
     LEARNING_RATE = 0.0003
     N_STEPS = 2048
     BATCH_SIZE = 64
-    N_EPOCHS = 10
-    TOTAL_TIMESTEPS = 3000
+    N_EPOCHS = 20
+    TOTAL_TIMESTEPS = 5000
     SEED = 42
     main(LEARNING_RATE, N_STEPS, BATCH_SIZE, N_EPOCHS, TOTAL_TIMESTEPS, SEED)
 

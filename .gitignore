@@ -4,3 +4,4 @@ temp_out.jpg
 dataset/
 __pycache__/
 image_filter_rl.zip
+rl_generated_output.jpg
