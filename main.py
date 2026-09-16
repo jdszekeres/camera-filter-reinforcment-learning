@@ -8,6 +8,7 @@ import os
 from type import ACRModel
 import ACR_mockup
 from image import image_similarity
+import math
 
 # Parameter bounds matching type.ACRModel fields
 PARAM_BOUNDS = [
@@ -16,7 +17,7 @@ PARAM_BOUNDS = [
     (-100, 100),      # highlights
     (-100, 100),      # shadows
     (-100, 100),      # whites
-    (2000, 50000),    # temperature
+    (-5000, 5000),     # temperature_shift
     (-150, 150),      # tint
     (-100, 100),      # vibrance
     (-100, 100),      # saturation
@@ -41,7 +42,7 @@ FIELD_NAMES = [
     "highlights",
     "shadows",
     "whites",
-    "temperature",
+    "temperature_shift",
     "tint",
     "vibrance",
     "saturation",
@@ -59,9 +60,7 @@ FIELD_NAMES = [
     "highlights_hsl.luminance",
 ]
 
-DISABLED_FIELDS = [
-    "temperature",
-]
+DISABLED_FIELDS = []
 
 def normalize_to_bounds(x_norm, lo, hi):
     # x_norm in [-1,1] -> map to [lo,hi]
@@ -181,26 +180,34 @@ class ImageFilterEnv(gym.Env):
         self.input_image, self.target_image = self._load_pair(pair_index)
         acr = action_to_acr(action)
 
-        ACR_mockup.apply_acr_to_pp3(acr, 'temp.pp3')
         self.input_image.save('temp_in.jpg')
+        ACR_mockup.apply_acr_to_pp3(acr, 'temp.pp3', input_image_path='temp_in.jpg')
 
         try:
-            ACR_mockup.render('temp_in.jpg', 'temp.pp3', 'temp_out.jpg')
+            saved = False
+            for attempt in range(3):
+                try:
+                    ACR_mockup.render('temp_in.jpg', 'temp.pp3', 'temp_out.jpg')
+                    saved = True
+                    break
+                except Exception:
+                    pass
+            if saved:
+                with Image.open('temp_out.jpg') as rendered_image_file:
+                    rendered_image = rendered_image_file.copy()
+                    rendered_image_file.close()
 
-            with Image.open('temp_out.jpg') as rendered_image_file:
-                rendered_image = rendered_image_file.copy()
-                rendered_image_file.close()
+                if rendered_image.size != self.target_image.size:
+                    rendered_image = rendered_image.resize(self.target_image.size, Image.Resampling.LANCZOS)
 
-
-            if rendered_image.size != self.target_image.size:
-                rendered_image = rendered_image.resize(self.target_image.size, Image.Resampling.LANCZOS)
-
-
-
-            rendered_array = np.asarray(rendered_image)
-            target_array = np.asarray(self.target_image)
-            reward = image_similarity(rendered_array, target_array)
-            self.current_image = rendered_image.copy()
+                rendered_array = np.asarray(rendered_image)
+                target_array = np.asarray(self.target_image)
+                reward = image_similarity(rendered_array, target_array)
+                self.current_image = rendered_image.copy()
+            else:
+                # Continue even if save failed after 3 retries
+                reward = 0.0
+                rendered_image = self.input_image.copy()
         finally:
             if os.path.exists('temp_in.jpg'):
                 os.remove('temp_in.jpg')
@@ -332,8 +339,6 @@ if __name__ == '__main__':
     N_STEPS = 2048
     BATCH_SIZE = 64
     N_EPOCHS = 20
-    TOTAL_TIMESTEPS = 5000
+    TOTAL_TIMESTEPS = math.pow(2, 12)  # 4096 steps
     SEED = 42
     main(LEARNING_RATE, N_STEPS, BATCH_SIZE, N_EPOCHS, TOTAL_TIMESTEPS, SEED)
-
-

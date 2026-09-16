@@ -19,7 +19,7 @@ class ACRModel(pydantic.BaseModel):
     whites: int | None = pydantic.Field(default=None, ge=-100, le=100)
 
     # Color
-    temperature: int | None = pydantic.Field(default=None, ge=2000, le=50000)
+    temperature_shift: int | None = pydantic.Field(default=None, ge=-5000, le=5000)
     tint: int | None = pydantic.Field(default=None, ge=-150, le=150)
     vibrance: int | None = pydantic.Field(default=None, ge=-100, le=100)
     saturation: int | None = pydantic.Field(default=None, ge=-100, le=100)

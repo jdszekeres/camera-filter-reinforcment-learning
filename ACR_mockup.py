@@ -88,7 +88,8 @@ def _hsl_triplet(hsl_model):
     )
 
 
-def apply_acr_to_pp3(acr, output_pp3: str):
+
+def apply_acr_to_pp3(acr, output_pp3: str, input_image_path: str | None = None):
     """
     Read an existing .pp3 as a template (so untouched tools -- camera
     profile, raw demosaic method, lens corrections, etc. -- keep their
@@ -129,11 +130,23 @@ def apply_acr_to_pp3(acr, output_pp3: str):
             cfg["Shadows & Highlights"]["LocalContrast"] = str(int(_val(acr.clarity)))
 
     # ---- Color ----
-    if "temperature" in set_fields or "tint" in set_fields:
+    if "temperature_shift" in set_fields or "tint" in set_fields:
         _ensure_section(cfg, "White Balance")
         cfg["White Balance"]["Setting"] = "Custom"
-        if "temperature" in set_fields:
-            cfg["White Balance"]["Temperature"] = str(int(_val(acr.temperature)))
+        if "temperature_shift" in set_fields:
+            shift = int(_val(acr.temperature_shift))
+            if shift != 0:
+                from image import estimate_white_balance
+                base_path = input_image_path or 'temp_in.jpg'
+                try:
+                    base_temp = estimate_white_balance(base_path)
+                except Exception as e:
+                    print(f"Error estimating white balance: {e}")
+                    
+                    base_temp = 6500
+
+                print(f"Estimated base temperature: {base_temp}K, applying shift of {shift}K")
+                cfg["White Balance"]["Temperature"] = str(int(base_temp + shift))
         if "tint" in set_fields:
             # RT's "Green" tint control is a ~0.2-2.5 multiplier; ACR tint is -150..150.
             cfg["White Balance"]["Green"] = str(round(1 + _val(acr.tint) / 300, 3))
@@ -219,14 +232,11 @@ if __name__ == "__main__":
     from type import ACRModel, HSLModel
 
     acr = ACRModel(
-        exposure=-5,
-        contrast=20,
-        highlights=-40,
-        shadows=30,
-        dehaze=25,
+
+        temperature_shift=-2000,
         # midtones_hsl=HSLModel(hue=210, saturation=15, luminance=0),
     )
 
-    apply_acr_to_pp3(acr, output_pp3="edit.pp3")
-    render("milkyway.jpg", "edit.pp3", "IMG_0001_out.jpg")
 
+    apply_acr_to_pp3(acr, output_pp3="edit.pp3", input_image_path="dataset/1_in.jpg")
+    render("dataset/1_in.jpg", "edit.pp3", "IMG_0001_out.jpg")
