@@ -16,7 +16,8 @@ import math
 import shutil
 import subprocess
 import time
-
+import numpy as np
+from type import ACRModel, HSLModel
 
 def _val(x):
     """Pull a numeric value out of a RangedFloat/RangedInt wrapper or a plain number."""
@@ -145,7 +146,6 @@ def apply_acr_to_pp3(acr, output_pp3: str, input_image_path: str | None = None):
                     
                     base_temp = 6500
 
-                print(f"Estimated base temperature: {base_temp}K, applying shift of {shift}K")
                 cfg["White Balance"]["Temperature"] = str(int(base_temp + shift))
         if "tint" in set_fields:
             # RT's "Green" tint control is a ~0.2-2.5 multiplier; ACR tint is -150..150.
@@ -226,6 +226,129 @@ def render(raw_path: str, pp3_path: str, out_path: str, rawtherapee_cli="rawther
     except subprocess.TimeoutExpired:
         process.kill()
         stout, stderr = process.communicate()
+
+def normalize_to_bounds(x_norm, lo, hi):
+    # x_norm in [-1,1] -> map to [lo,hi]
+    return lo + (x_norm + 1.0) * 0.5 * (hi - lo)
+
+PARAM_BOUNDS = [
+    (-5.0, 5.0),      # exposure
+    (-100, 100),      # contrast
+    (-100, 100),      # highlights
+    (-100, 100),      # shadows
+    (-100, 100),      # whites
+    (-5000, 5000),     # temperature_shift
+    (-150, 150),      # tint
+    (-100, 100),      # vibrance
+    (-100, 100),      # saturation
+    (-100, 100),      # texture
+    (-100, 100),      # clarity
+    (0, 100),         # dehaze
+    (0, 360),         # shadows_hsl.hue
+    (0, 100),         # shadows_hsl.saturation
+    (0, 100),         # shadows_hsl.luminance
+    (0, 360),         # midtones_hsl.hue
+    (0, 100),         # midtones_hsl.saturation
+    (0, 100),         # midtones_hsl.luminance
+    (0, 360),         # highlights_hsl.hue
+    (0, 100),         # highlights_hsl.saturation
+    (0, 100),         # highlights_hsl.luminance
+]
+
+DISABLED_FIELDS = []
+FIELD_NAMES = [
+    "exposure",
+    "contrast",
+    "highlights",
+    "shadows",
+    "whites",
+    "temperature_shift",
+    "tint",
+    "vibrance",
+    "saturation",
+    "texture",
+    "clarity",
+    "dehaze",
+    "shadows_hsl.hue",
+    "shadows_hsl.saturation",
+    "shadows_hsl.luminance",
+    "midtones_hsl.hue",
+    "midtones_hsl.saturation",
+    "midtones_hsl.luminance",
+    "highlights_hsl.hue",
+    "highlights_hsl.saturation",
+    "highlights_hsl.luminance",
+]
+
+
+
+def action_to_acr(action):
+    # action: 42 values in [-1,1] => 21 masks followed by 21 values
+    action = np.asarray(action, dtype=np.float32).flatten()
+    expected_size = len(PARAM_BOUNDS) * 2
+    if action.size != expected_size:
+        raise ValueError(f"Expected action length {expected_size}, got {action.size}")
+
+    disabled_fields = set(DISABLED_FIELDS)
+
+    mask_values = action[: len(PARAM_BOUNDS)]
+    param_values = action[len(PARAM_BOUNDS) :]
+
+    acr_dict = {}
+    hsl_groups = {
+        "shadows_hsl": {
+            "mask_indices": (12, 13, 14),
+            "value_indices": (12, 13, 14),
+        },
+        "midtones_hsl": {
+            "mask_indices": (15, 16, 17),
+            "value_indices": (15, 16, 17),
+        },
+        "highlights_hsl": {
+            "mask_indices": (18, 19, 20),
+            "value_indices": (18, 19, 20),
+        },
+    }
+
+    for index, (field_name, mask_value, param_value, bounds) in enumerate(zip(FIELD_NAMES, mask_values, param_values, PARAM_BOUNDS)):
+        if field_name.startswith("shadows_hsl.") or field_name.startswith("midtones_hsl.") or field_name.startswith("highlights_hsl."):
+            continue
+
+        if field_name in disabled_fields:
+            continue
+
+        if mask_value <= 0:
+            continue
+
+        lo, hi = bounds
+        normalized_value = normalize_to_bounds(float(param_value), lo, hi)
+        normalized_value = np.clip(normalized_value, lo, hi)
+
+        if field_name == "exposure":
+            acr_dict[field_name] = normalized_value
+        else:
+            acr_dict[field_name] = int(round(normalized_value))
+
+    for hsl_name, group_info in hsl_groups.items():
+        if hsl_name in disabled_fields:
+            continue
+
+        group_masks = [mask_values[i] > 0 for i in group_info["mask_indices"]]
+        if any(group_masks) and not all(group_masks):
+            continue
+        if not all(group_masks):
+            continue
+
+        hsl_values = {}
+        for field_index, field_suffix in zip(group_info["value_indices"], ("hue", "saturation", "luminance")):
+            lo, hi = PARAM_BOUNDS[field_index]
+            normalized_value = normalize_to_bounds(float(param_values[field_index]), lo, hi)
+            hsl_values[field_suffix] = int(round(normalized_value))
+
+        acr_dict[hsl_name] = hsl_values
+
+    return ACRModel(**acr_dict)
+
 
 
 if __name__ == "__main__":

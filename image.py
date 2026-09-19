@@ -1,6 +1,7 @@
+from functools import lru_cache
+
 import numpy as np
 from PIL import Image
-
 
 def image_similarity(image1_array, image2_array):
     """Compute a stronger image similarity score in [0, 1]."""
@@ -46,7 +47,7 @@ SRGB_TO_XYZ_MATRIX = np.array([
     [0.0193339, 0.1191920, 0.9503041]
 ], dtype=np.float64)
 
-
+@lru_cache(maxsize=128)
 def estimate_white_balance(image_path: str) -> int:
     """
     Estimate the Correlated Color Temperature (CCT) in Kelvin using:
@@ -72,6 +73,7 @@ def estimate_white_balance(image_path: str) -> int:
     r_mean = float(np.mean(arr[:, :, 0]))
     g_mean = float(np.mean(arr[:, :, 1]))
     b_mean = float(np.mean(arr[:, :, 2]))
+    
 
     # Robustness: black image (all channels near zero) -> division-by-zero prevention
     if r_mean < 1e-6 and g_mean < 1e-6 and b_mean < 1e-6:

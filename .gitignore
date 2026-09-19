@@ -5,3 +5,5 @@ dataset/
 __pycache__/
 image_filter_rl.zip
 rl_generated_output.jpg
+output.jpg
+rl_best_action.json
