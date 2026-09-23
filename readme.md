@@ -1,7 +1,18 @@
 # Camera Filter Preset Generator
 ## A reinforcement learning model to create Adobe Camera Raw presets 
 
+
+
 ### Usage
+
+### Try it!
+<video src="demo.mp4" controls autoplay onloadstart="this.playbackRate = 4;"></video>
+
+I've trained a model putting my sunglasses in front of the camera. To try it:
+
+- Download `cli.exe` from [releases](https://github.com/jdszekeres/camera-filter-reinforcment-learning/releases)
+- Follow the instruction in `3. Using the data`, replacing `python cli.py` with `cli.exe`
+
 
 ### 0. Installtion
 
@@ -29,4 +40,33 @@ Take photos both with and without the filter (make sure they are the same image 
 The model can be run by simply running main.py. To change hyperparameters, look for the `if __name__ == '__main__'` section at the end of the file
 
 ### 3. Using the data
-Upon completion of training, the RL model will output the most optimal parameters it has found. To use these settings, simply input them into the correspoding fields in Adobe camera raw.
+The model weights are saved to rl_best_action.json, use `cli.py` to get useful data:
+
+```
+python cli.py apply
+
+Applys the filter to an image
+
+--i: The input image
+--o=output.jpg: The output image
+
+python cli.py list
+
+Lists the settings found by the model
+
+python cli.py histogram
+
+Shows an ascii histogram distribution of color brightness in an image
+
+--i: The input image
+
+python cli.py score
+
+Scores how an input image with a filter applied compares to another image
+
+--i: The input image to apply the filter
+--o: The image to compare to
+```
+
+
+

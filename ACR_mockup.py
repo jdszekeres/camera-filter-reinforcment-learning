@@ -13,8 +13,11 @@ section/key each ACR field maps to, and which mappings are approximations
 
 import configparser
 import math
+import os
 import shutil
 import subprocess
+import sys
+import sys
 import time
 import numpy as np
 from type import ACRModel, HSLModel
@@ -211,7 +214,12 @@ def apply_acr_to_pp3(acr, output_pp3: str, input_image_path: str | None = None):
         cfg.write(f, space_around_delimiters=False)
 
 
-def render(raw_path: str, pp3_path: str, out_path: str, rawtherapee_cli="rawtherapee-cli"):
+def render(raw_path: str, pp3_path: str, out_path: str):
+    rawtherapee_cli="rawtherapee-cli"
+    if hasattr(sys, '_MEIPASS'):
+        rawtherapee_cli = os.path.join(sys._MEIPASS, "rawtherapee-cli.exe") # pyright: ignore[reportAttributeAccessIssue]
+
+
     """Shell out to rawtherapee-cli to actually render the raw file."""
     if shutil.which(rawtherapee_cli) is None:
         raise RuntimeError(f"'{rawtherapee_cli}' not found on PATH")

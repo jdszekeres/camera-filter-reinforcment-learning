@@ -1,7 +1,7 @@
 from functools import lru_cache
 
 import numpy as np
-from PIL import Image
+from PIL import Image, ImageOps
 
 def image_similarity(image1_array, image2_array):
     """Compute a stronger image similarity score in [0, 1]."""
@@ -63,7 +63,9 @@ def estimate_white_balance(image_path: str) -> int:
         int: Estimated CCT in Kelvin, or 6500K (daylight fallback) for errors/edge cases.
     """
     try:
-        img = Image.open(image_path).convert("RGB")
+        img = Image.open(image_path)
+        img = ImageOps.exif_transpose(img)  # Apply EXIF orientation
+        img = img.convert("RGB")
     except Exception as exc:
         raise ValueError(f"Failed to open image at {image_path}: {exc}") from exc
 
