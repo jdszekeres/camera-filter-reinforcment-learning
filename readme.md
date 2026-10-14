@@ -1,20 +1,21 @@
 # Camera Filter Preset Generator
 ## A reinforcement learning model to create Adobe Camera Raw presets 
 
-![header image](header.jpeg)
-
+![header image](readme_assets/header.jpeg)
+![Historgram screenshot](readme_assets/histogram.png)
 ### Usage
 
 ### Try it!
-<video src="demo.mp4" controls autoplay onloadstart="this.playbackRate = 4;"></video>
+<video src="readme_assets/demo.mp4" controls autoplay onloadstart="this.playbackRate = 4;"></video>
 
 I've trained a model putting my sunglasses in front of the camera. To try it:
 
 - Download `cli.exe` from [releases](https://github.com/jdszekeres/camera-filter-reinforcment-learning/releases)
 - Follow the instruction in `3. Using the data`, replacing `python cli.py` with `cli.exe`
 
+### Building Locally
 
-### 0. Installtion
+### 0. Installation
 
 Install the latest version of RawTherapee (At least version 5.12) and ensure it is on your PATH (C:\\Program Files\\RawTherapee\\\<version\> on Windows or /Applications/RawTherapee.app/Contents/MacOS/rawtherapee-cli on Mac)
 
@@ -68,5 +69,9 @@ Scores how an input image with a filter applied compares to another image
 --o: The image to compare to
 ```
 
+### Features
 
+- RL model for training on a set of images
+- CLI tool to apply RL_model output to new images
+- Image processing tool to compare filtered images
 
